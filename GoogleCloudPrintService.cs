@@ -36,13 +36,13 @@ namespace GoogleCloudPrint
         /// <summary>
         /// Initializes a new instance of the <see cref="GoogleCloudPrintService"/> class.
         /// </summary>
-        /// <param name="jsonCredencialFilePath">The json credencial file path.</param>
+        /// <param name="jsonCredential">The json credencial file path.</param>
         /// <param name="source">The source.</param>
-        public GoogleCloudPrintService(string jsonCredencialFilePath, string source)
+        public GoogleCloudPrintService(string jsonCredential, string source)
         {
             _source = source;
 
-            _credentials = Authorize(jsonCredencialFilePath);
+            _credentials = Authorize(jsonCredential);
         }
 
         public Task<CloudPrinters> GetPrintersAsync()
@@ -281,35 +281,33 @@ namespace GoogleCloudPrint
         /// <summary>
         /// Authorizes the specified json credential file path.
         /// </summary>
-        /// <param name="jsonCredentialPath">The json credential file path.</param>
+        /// <param name="jsonCredentialPath">The json credential.</param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException">JSON content does not represent valid service account credentials</exception>
-        private ServiceAccountCredential Authorize(string jsonCredentialPath)
+        private ServiceAccountCredential Authorize(string jsonCredential)
         {
-            string[] scopes = {"https://www.googleapis.com/auth/cloudprint"};
+            string[] scopes = { "https://www.googleapis.com/auth/cloudprint" };
 
-            using (var stream = new FileStream(jsonCredentialPath, FileMode.Open, FileAccess.Read))
-            {
-                var credentialParameters = NewtonsoftJsonSerializer.Instance.Deserialize<JsonCredentialParameters>(stream);
+            var credentialParameters = NewtonsoftJsonSerializer.Instance.Deserialize<JsonCredentialParameters>(jsonCredential);
 
-                if (credentialParameters.Type != "service_account"
-                    || string.IsNullOrEmpty(credentialParameters.ClientEmail)
-                    || string.IsNullOrEmpty(credentialParameters.PrivateKey))
-                    throw new InvalidOperationException("JSON content does not represent valid service account credentials.");
+            if (credentialParameters.Type != "service_account"
+                || string.IsNullOrEmpty(credentialParameters.ClientEmail)
+                || string.IsNullOrEmpty(credentialParameters.PrivateKey))
+                throw new InvalidOperationException("JSON content does not represent valid service account credentials.");
 
-                _serviceAccountEmail = credentialParameters.ClientEmail;
+            _serviceAccountEmail = credentialParameters.ClientEmail;
 
-                var credential = new ServiceAccountCredential(
-                    new ServiceAccountCredential.Initializer(credentialParameters.ClientEmail)
-                    {
-                        Scopes = scopes
-                    }.FromPrivateKey(credentialParameters.PrivateKey));
+            var credential = new ServiceAccountCredential(
+                new ServiceAccountCredential.Initializer(credentialParameters.ClientEmail)
+                {
+                    Scopes = scopes
+                }.FromPrivateKey(credentialParameters.PrivateKey));
 
-                // this does the magic for webform that need sync results and fails with async execution
-                credential.RequestAccessTokenAsync(CancellationToken.None).Wait();
+            // this does the magic for webform that need sync results and fails with async execution
+            credential.RequestAccessTokenAsync(CancellationToken.None).Wait();
 
-                return credential;
-            }
+            return credential;
+
         }
 
         internal class PostData
